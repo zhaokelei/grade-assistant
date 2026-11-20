@@ -25,3 +25,7 @@ monitor-go/GradeMonitor.exe
 monitor-go/go-run*.log
 .toolchain/
 _test*.json
+
+# 旧版 Node 服务与工具脚本
+monitor-server.js.bak
+.claude/
