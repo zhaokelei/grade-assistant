@@ -2,7 +2,8 @@
 
 const DEFAULT_CONFIG = {
   apiUrl: 'http://47.122.117.143:57894/v1/chat/completions',
-  apiKey: 'sk-trae-9f7847289f6445c484634e2895e8ed76',
+  // 密钥不入库：首次使用请在「02 接口」页填写并保存
+  apiKey: '',
   model: 'deepseek-v4.1-flash',
   question: '',
   standardAnswer: '',

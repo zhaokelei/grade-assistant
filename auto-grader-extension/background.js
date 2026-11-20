@@ -3,7 +3,8 @@
 // 默认配置
 const DEFAULT_CONFIG = {
   apiUrl: 'http://47.122.117.143:57894/v1/chat/completions',
-  apiKey: 'sk-trae-9f7847289f6445c484634e2895e8ed76',
+  // 密钥不写进仓库：首次使用请在「02 接口」页填写并保存
+  apiKey: '',
   model: 'deepseek-v4.1-flash',
   question: '',
   standardAnswer: '',
@@ -29,9 +30,15 @@ async function getConfig() {
     chrome.storage.local.get(Object.keys(DEFAULT_CONFIG), (result) => {
       const config = { ...DEFAULT_CONFIG, ...result };
 
-      // 迁移旧配置：只换接口地址与密钥，不动用户填的题目内容
+      // 迁移旧配置：换掉失效的中转地址，不动用户已填的有效密钥
       if (isLegacyConfig(config.apiUrl, config.apiKey)) {
-        const patch = { apiUrl: DEFAULT_CONFIG.apiUrl, apiKey: DEFAULT_CONFIG.apiKey, model: DEFAULT_CONFIG.model };
+        const patch = { apiUrl: DEFAULT_CONFIG.apiUrl, model: DEFAULT_CONFIG.model };
+
+        // 旧版内置的失效密钥直接清掉，等用户填自己的
+        if (String(config.apiKey || '').indexOf('sk-adfcc750779bfac2f10f30be8aecf1a0cb') !== -1) {
+          patch.apiKey = '';
+        }
+
         chrome.storage.local.set(patch);
         Object.assign(config, patch);
       }
