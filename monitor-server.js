@@ -143,16 +143,40 @@ async function updatePluginFiles() {
 
   const tmpDir = path.join(APP_DIR, 'plugin-update-tmp');
   const base = updateState.pluginBase.replace(/\/+$/, '');
+  const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
   try {
     fs.mkdirSync(tmpDir, { recursive: true });
 
     for (const name of updateState.pluginFiles) {
-      const res = await fetch(base + '/' + name, { cache: 'no-store' });
-      if (!res.ok) throw new Error('下载 ' + name + ' 失败（' + res.status + '）');
+      let res = null;
+
+      // Gitee 对连续请求会返回 451/429，这里退避重试
+      for (let attempt = 0; attempt < 3; attempt++) {
+        res = await fetch(base + '/' + name, {
+          cache: 'no-store',
+          redirect: 'follow',
+          headers: { 'User-Agent': UA, 'Referer': 'https://gitee.com/' }
+        });
+        if (res.ok) break;
+        if (res.status === 451 || res.status === 429 || res.status >= 500) {
+          await sleep(900 * (attempt + 1));
+          continue;
+        }
+        break;
+      }
+
+      if (!res || !res.ok) {
+        throw new Error('下载 ' + name + ' 失败（' + (res ? res.status : '无响应') + '）');
+      }
+
       const buf = Buffer.from(await res.arrayBuffer());
       if (!buf.length) throw new Error(name + ' 内容为空');
       fs.writeFileSync(path.join(tmpDir, name), buf);
+
+      // 控制节奏，避免触发限流
+      await sleep(180);
     }
 
     for (const name of updateState.pluginFiles) {

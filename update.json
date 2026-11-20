@@ -1,9 +1,9 @@
 {
   "version": "1.1.5",
   "date": "2026-11-21",
-  "notes": "首个自更新版本：Gitee 版本清单 + 插件文件自动替换并重载 + 监控程序自动更新",
-  "monitorUrl": "https://gitee.com/xiaolei567/grade-assistant/releases/download/v1.1.5/GradeMonitor.exe",
-  "pluginBase": "https://gitee.com/xiaolei567/grade-assistant/raw/master/auto-grader-extension",
+  "notes": "自更新版本：GitHub 版本清单 + 插件文件自动替换并重载 + 监控程序自动更新（国内走 gh-proxy 加速）",
+  "monitorUrl": "https://gh-proxy.com/https://github.com/zhaokelei/grade-assistant/releases/download/v1.1.5/GradeMonitor.exe",
+  "pluginBase": "https://gh-proxy.com/https://raw.githubusercontent.com/zhaokelei/grade-assistant/main/auto-grader-extension",
   "pluginFiles": [
     "manifest.json",
     "background.js",
