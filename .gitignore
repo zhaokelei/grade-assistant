@@ -19,3 +19,9 @@ ask1.json
 ask1.out
 headers.txt
 gen-icon.js
+
+# Go 版构建产物与本地工具链
+monitor-go/GradeMonitor.exe
+monitor-go/go-run*.log
+.toolchain/
+_test*.json
