@@ -1,0 +1,520 @@
+/* content.css — 页面内浮动控制面板（点阵 Lattice · Night） */
+
+#auto-grader-panel {
+  position: fixed;
+  top: 100px;
+  right: 20px;
+  width: min(320px, calc(100vw - 24px));
+  z-index: 99999;
+  font-family: var(--f-ui);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--panel);
+  border-radius: var(--r-2);
+  box-shadow: inset 0 0 0 1px var(--line), 0 18px 40px -20px rgb(0 0 0 / .7);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- 头部 ---------- */
+
+#auto-grader-panel .agp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  cursor: move;
+}
+
+#auto-grader-panel .agp-title {
+  font-size: var(--t-13);
+  font-weight: 600;
+  letter-spacing: .01em;
+  color: var(--text);
+}
+
+#auto-grader-panel .agp-header-btns {
+  display: flex;
+  gap: 6px;
+}
+
+#auto-grader-panel .agp-icon-btn,
+#auto-grader-panel .agp-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  color: var(--text-dim);
+  font-family: var(--f-ui);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition: box-shadow var(--t-fast), color var(--t-fast), transform var(--t-fast) var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+
+#auto-grader-panel .agp-icon-btn:hover,
+#auto-grader-panel .agp-toggle:hover {
+  box-shadow: inset 0 0 0 1px var(--text);
+  color: var(--text);
+}
+
+#auto-grader-panel .agp-icon-btn:active,
+#auto-grader-panel .agp-toggle:active {
+  transform: scale(.94);
+}
+
+/* ---------- 主体 ---------- */
+
+#auto-grader-panel .agp-body {
+  padding: 12px;
+}
+
+#auto-grader-panel .agp-info {
+  margin-bottom: var(--s-3);
+  padding-bottom: var(--s-3);
+  border-bottom: 1px solid var(--line);
+}
+
+#auto-grader-panel .agp-info-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 3px;
+  font-size: var(--t-13);
+}
+
+#auto-grader-panel .agp-info-item:last-child {
+  margin-bottom: 0;
+}
+
+#auto-grader-panel .agp-label {
+  font-size: var(--t-12);
+  color: var(--text-dim);
+}
+
+#auto-grader-panel .agp-value {
+  font-family: var(--f-dot);
+  font-weight: 900;
+  font-size: var(--t-15);
+  letter-spacing: .04em;
+  color: var(--text);
+}
+
+/* 状态：光只由状态赢得 */
+#auto-grader-panel .agp-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--f-ui);
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--text-dim);
+}
+
+#auto-grader-panel .agp-status::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--text-faint);
+  transition: background var(--t-mid) var(--ease);
+}
+
+#auto-grader-panel[data-state="running"] .agp-status {
+  color: var(--text);
+}
+
+#auto-grader-panel[data-state="running"] .agp-status::before {
+  background: var(--hot);
+  box-shadow: 0 0 6px rgb(255 90 31 / .6);
+}
+
+#auto-grader-panel[data-state="paused"] .agp-status::before {
+  background: var(--text-dim);
+  box-shadow: inset 0 0 0 1px var(--text-dim);
+  background: transparent;
+}
+
+/* 上一份分数 */
+#auto-grader-panel .agp-last-score {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+
+#auto-grader-panel .agp-last-score-value {
+  font-size: var(--t-15);
+}
+
+#auto-grader-panel .agp-last-score-value.score-high {
+  color: var(--hot-2);
+}
+
+#auto-grader-panel .agp-last-score-value.score-mid {
+  color: var(--text);
+}
+
+#auto-grader-panel .agp-last-score-value.score-low {
+  color: var(--hot);
+}
+
+/* ---------- 操作区 ---------- */
+
+#auto-grader-panel .agp-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: var(--s-3);
+}
+
+#auto-grader-panel .agp-btn {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--text);
+  font-family: var(--f-ui);
+  font-size: var(--t-12);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  transition: box-shadow var(--t-fast), color var(--t-fast), background var(--t-fast),
+    transform var(--t-fast) var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+
+#auto-grader-panel .agp-btn:active {
+  transform: scale(.96);
+}
+
+#auto-grader-panel .agp-btn:disabled {
+  color: var(--text-faint);
+  box-shadow: inset 0 0 0 1px var(--line);
+  transform: none;
+  cursor: not-allowed;
+}
+
+/* 批改当前：幽灵按钮 */
+#auto-grader-panel .agp-btn-primary {
+  color: var(--text);
+}
+
+#auto-grader-panel .agp-btn-primary:hover {
+  box-shadow: inset 0 0 0 1px var(--text);
+}
+
+/* 开始：唯一的实心信号橙（动作） */
+#auto-grader-panel .agp-btn-success {
+  background: var(--hot);
+  color: var(--bg);
+  box-shadow: none;
+}
+
+#auto-grader-panel .agp-btn-success:hover {
+  background: var(--hot-hover);
+  box-shadow: none;
+}
+
+/* 暂停：中性幽灵 */
+#auto-grader-panel .agp-btn-warning {
+  color: var(--text);
+}
+
+#auto-grader-panel .agp-btn-warning:hover {
+  box-shadow: inset 0 0 0 1px var(--text);
+}
+
+/* 停止：描边 + 橙字 */
+#auto-grader-panel .agp-btn-danger {
+  color: var(--hot);
+}
+
+#auto-grader-panel .agp-btn-danger:hover {
+  box-shadow: inset 0 0 0 1px var(--hot);
+}
+
+/* ---------- 日志区 ---------- */
+
+#auto-grader-panel .agp-log-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border-radius: var(--r-1);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-family: var(--f-dot);
+  font-weight: 900;
+  font-size: 11px;
+  letter-spacing: .06em;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: box-shadow var(--t-fast), color var(--t-fast);
+}
+
+#auto-grader-panel .agp-log-header:hover {
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  color: var(--text);
+}
+
+#auto-grader-panel .agp-log-arrow {
+  font-size: 9px;
+  color: var(--text-faint);
+}
+
+#auto-grader-panel .agp-log-container {
+  max-height: 260px;
+  margin-bottom: var(--s-2);
+  padding: 8px;
+  overflow-y: auto;
+  border-radius: var(--r-1);
+  background: rgb(7 8 11 / .6);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-size: var(--t-12);
+  line-height: 1.6;
+}
+
+#auto-grader-panel .agp-log-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+#auto-grader-panel .agp-log-container::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: var(--r-pill);
+}
+
+#auto-grader-panel .agp-log-empty {
+  padding: 18px 0;
+  text-align: center;
+  font-size: var(--t-12);
+  color: var(--text-faint);
+}
+
+#auto-grader-panel .agp-log-item {
+  padding: 4px 8px;
+  margin-bottom: 2px;
+  border-radius: var(--r-1);
+  box-shadow: inset 2px 0 0 transparent;
+  word-break: break-word;
+  color: var(--text-dim);
+}
+
+#auto-grader-panel .agp-log-time {
+  margin-right: 6px;
+  font-family: var(--f-dot);
+  font-weight: 900;
+  font-size: 10px;
+  letter-spacing: .04em;
+  color: var(--text-faint);
+}
+
+#auto-grader-panel .agp-log-info {
+  color: var(--text-dim);
+}
+
+/* 冰蓝 = 结果/使能 */
+#auto-grader-panel .agp-log-success {
+  color: var(--hot-2);
+  background: rgb(127 216 255 / .06);
+  box-shadow: inset 2px 0 0 rgb(127 216 255 / .5);
+}
+
+/* 橙 = 需要/动作 */
+#auto-grader-panel .agp-log-error {
+  color: var(--hot);
+  background: rgb(255 90 31 / .07);
+  box-shadow: inset 2px 0 0 rgb(255 90 31 / .55);
+}
+
+#auto-grader-panel .agp-log-thinking {
+  color: var(--text-dim);
+  background: rgb(236 231 218 / .04);
+  box-shadow: inset 2px 0 0 var(--line-strong);
+  font-style: italic;
+}
+
+#auto-grader-panel .agp-log-stream {
+  color: var(--text);
+  background: rgb(236 231 218 / .05);
+  box-shadow: inset 2px 0 0 var(--hot);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+#auto-grader-panel .agp-stream-text {
+  opacity: .95;
+}
+
+#auto-grader-panel .agp-log-point {
+  font-weight: 600;
+  color: var(--hot-2);
+}
+
+#auto-grader-panel .agp-log-point-detail {
+  padding-left: 8px;
+  color: var(--text-dim);
+}
+
+#auto-grader-panel .agp-log-miss {
+  font-weight: 600;
+  color: var(--hot);
+}
+
+#auto-grader-panel .agp-log-miss-detail {
+  padding-left: 8px;
+  color: var(--text-dim);
+}
+
+#auto-grader-panel .agp-log-reason {
+  color: var(--text-dim);
+  background: rgb(236 231 218 / .04);
+  box-shadow: inset 2px 0 0 var(--line-strong);
+}
+
+#auto-grader-panel .agp-log-divider {
+  padding: 2px 0;
+  text-align: center;
+  color: var(--text-faint);
+  letter-spacing: -1px;
+}
+
+#auto-grader-panel .agp-log-last-score {
+  padding-left: 8px;
+  font-family: var(--f-dot);
+  font-weight: 900;
+  letter-spacing: .04em;
+  color: var(--text);
+  background: rgb(236 231 218 / .05);
+  box-shadow: inset 2px 0 0 var(--line-strong);
+}
+
+#auto-grader-panel .agp-log-blank {
+  padding-left: 8px;
+  color: var(--text-faint);
+  background: rgb(236 231 218 / .03);
+  box-shadow: inset 2px 0 0 var(--line);
+}
+
+/* ---------- 底部提示 ---------- */
+
+#auto-grader-panel .agp-tip {
+  padding: 8px 10px;
+  border-radius: var(--r-1);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-faint);
+}
+
+/* ---------- 面板图标：点阵线条 ---------- */
+
+#auto-grader-panel .agp-ico {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: .1 3.2;
+}
+
+#auto-grader-panel .agp-ico-logo {
+  width: 16px;
+  height: 16px;
+  stroke: var(--hot);
+  stroke-width: 2.2;
+  stroke-dasharray: .1 3.6;
+}
+
+#auto-grader-panel .agp-ico-tip {
+  margin-top: 2px;
+  color: var(--hot);
+}
+
+#auto-grader-panel .agp-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#auto-grader-panel .agp-log-arrow {
+  display: inline-flex;
+  transition: transform var(--t-fast) var(--ease);
+}
+
+#auto-grader-panel .agp-log-arrow.is-open {
+  transform: rotate(180deg);
+}
+
+#auto-grader-panel .agp-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+/* 小屏 / 窄窗口：面板收边，不遮挡页面内容 */
+@media (max-width: 430px) {
+  #auto-grader-panel {
+    top: 64px;
+    right: 12px;
+    width: calc(100vw - 24px);
+  }
+}
+
+/* 高 DPI 屏：点线不过细 */
+@media (-webkit-min-device-pixel-ratio: 2) {
+  #auto-grader-panel .agp-ico {
+    stroke-width: 1.8;
+  }
+}
+
+/* 收起/展开按钮：箭头方向随状态翻转，收起时橙色描边提示有隐藏内容 */
+#auto-grader-panel .agp-toggle {
+  transition: box-shadow var(--t-fast), color var(--t-fast), transform var(--t-fast) var(--ease);
+}
+
+#auto-grader-panel .agp-toggle .agp-toggle-icon {
+  width: 16px;
+  height: 16px;
+  transform: rotate(180deg);
+  transition: transform var(--t-fast) var(--ease);
+}
+
+#auto-grader-panel .agp-toggle.is-collapsed {
+  box-shadow: inset 0 0 0 1px var(--hot);
+  color: var(--hot);
+}
+
+#auto-grader-panel .agp-toggle.is-collapsed .agp-toggle-icon {
+  transform: rotate(0deg);
+}
+
+/* 折叠按钮提亮，保证「能收起」这件事一眼可见 */
+#auto-grader-panel .agp-toggle {
+  color: var(--text);
+  min-height: 28px;
+  padding: 0 10px;
+  background: rgb(236 231 218 / .06);
+}
+
+#auto-grader-panel .agp-toggle:hover {
+  background: rgb(236 231 218 / .12);
+  color: var(--text);
+}

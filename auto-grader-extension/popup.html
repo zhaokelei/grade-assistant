@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>自动阅卷助手 - 设置</title>
+  <link rel="stylesheet" href="lattice.css">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <canvas id="latticeField" aria-hidden="true"></canvas>
+
+  <svg class="ico-defs" aria-hidden="true" focusable="false">
+    <symbol id="i-logo" viewBox="0 0 24 24"><path d="M6 13.2l4.3 4.3L18 7.8"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><path d="M8.2 3.4h7.6M8.2 20.6h7.6M9.6 3.4h4.8a2 2 0 0 1 2 2v13.2a2 2 0 0 1-2 2H9.6a2 2 0 0 1-2-2V5.4a2 2 0 0 1 2-2z"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8.6 6.4L17.4 12l-8.8 5.6z"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9.6 7v10M14.4 7v10"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><path d="M8 8h8v8H8z"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24"><path d="M7.4 4.4h6.2l3.4 3.4v11.8H7.4z"/><path d="M13.4 4.6v3.4h3.4"/><path d="M9.8 12.4h5.4M9.8 15.4h3.6"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M19.4 12a7.4 7.4 0 1 1-2.2-5.2"/><path d="M19.6 4.6v4.2h-4.2"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M5.4 7.2h13.2"/><path d="M9.4 7.2V5.4h5.2v1.8"/><path d="M7.4 7.2l.9 12.2h7.4l.9-12.2"/></symbol>
+    <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M12 4.4a5.9 5.9 0 0 1 3.4 10.7v2.3H8.6v-2.3A5.9 5.9 0 0 1 12 4.4z"/><path d="M10.2 20h3.6"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M5.4 7.4h13.2M5.4 12h13.2M5.4 16.6h8.6"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M7.4 12h9.2"/></symbol>
+    <symbol id="i-square" viewBox="0 0 24 24"><path d="M7.6 7.6h8.8v8.8H7.6z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M6.4 12.4l3.8 3.8L17.6 8"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M7.6 7.6l8.8 8.8M16.4 7.6l-8.8 8.8"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M8.4 10.2l3.6 3.6 3.6-3.6"/></symbol>
+    <symbol id="i-think" viewBox="0 0 24 24"><circle cx="8.6" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="15.4" cy="12" r="1.5" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-window" viewBox="0 0 24 24"><path d="M5.6 6.4h12.8v11.2H5.6z"/><path d="M5.6 9.8h12.8"/></symbol>
+  </svg>
+
+  <div class="popup-container">
+    <div class="popup-header">
+      <h1><svg class="ico ico-logo" aria-hidden="true"><use href="#i-logo"/></svg>自动阅卷助手</h1>
+      <p class="subtitle">AI智能批改，高效阅卷</p>
+      <div class="header-actions">
+        <span class="version-tag" id="versionTag">v1.1.5</span>
+        <button type="button" class="btn-icon" id="openWindowBtn" aria-label="在新窗口打开" title="在新窗口打开（复制答案时不会被打断）">
+          <svg class="ico ico-sm" aria-hidden="true"><use href="#i-window"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="tab-nav">
+      <button class="tab-btn active" data-tab="answer"><b>01</b>题目</button>
+      <button class="tab-btn" data-tab="api"><b>02</b>接口</button>
+      <button class="tab-btn" data-tab="control"><b>03</b>控制</button>
+      <button class="tab-btn" data-tab="history"><b>04</b>记录</button>
+    </div>
+
+    <div class="draft-banner" id="draftBanner" hidden>
+      <span class="draft-text">已恢复上次未保存的内容</span>
+      <button type="button" class="draft-discard" id="discardDraftBtn">丢弃</button>
+    </div>
+
+    <!-- 题目与答案标签页 -->
+    <div class="tab-content active" id="tab-answer">
+      <div class="form-group">
+        <label for="question">题目 / 问题是什么 <span class="required">*</span></label>
+        <textarea id="question" rows="4" placeholder="请输入本题题干，例如：结合材料，运用XX知识，说明……"></textarea>
+        <div class="char-count"><span id="questionCharCount">0</span> 字</div>
+      </div>
+
+      <div class="form-group">
+        <label for="standardAnswer">标准答案 <span class="required">*</span></label>
+        <textarea id="standardAnswer" rows="6" placeholder="请粘贴本题的标准答案内容..."></textarea>
+        <div class="char-count"><span id="answerCharCount">0</span> 字</div>
+      </div>
+
+      <div class="form-group">
+        <label for="scoringCriteria">评分标准（可选）</label>
+        <textarea id="scoringCriteria" rows="4" placeholder="例如：每答出一个要点给2分，本题最高6分；只写要点不展开的，每点最多1分..."></textarea>
+        <div class="hint-line">留空则按「要点均分」自动评分</div>
+      </div>
+
+      <div class="form-group">
+        <label for="totalScore">题目满分（分）</label>
+        <input type="number" id="totalScore" min="1" max="100" value="6" placeholder="请输入满分">
+      </div>
+
+      <button class="btn-save" id="saveAnswerBtn">保存题目与答案</button>
+    </div>
+
+    <!-- API设置标签页 -->
+    <div class="tab-content" id="tab-api">
+      <div class="form-group">
+        <label for="apiUrl">API 地址</label>
+        <input type="text" id="apiUrl" placeholder="https://api.example.com/v1/chat/completions">
+      </div>
+
+      <div class="form-group">
+        <label for="apiKey">API 密钥</label>
+        <div class="input-with-btn">
+          <input type="password" id="apiKey" placeholder="sk-xxxxxxxxxxxxxxxx">
+          <button class="btn-toggle" id="toggleKeyBtn">显示</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="model">模型名称</label>
+        <div class="model-row">
+          <input type="text" id="model" placeholder="deepseek-v4.1-flash">
+          <button type="button" class="btn-detect" id="detectModelsBtn">
+            <svg class="ico ico-sm" aria-hidden="true"><use href="#i-refresh"/></svg>探测
+          </button>
+        </div>
+        <div class="model-list" id="modelList" hidden></div>
+        <div class="hint-line" id="modelHint"></div>
+      </div>
+
+      <button class="btn-save" id="saveApiBtn">保存API设置</button>
+      
+      <div class="test-section">
+        <button class="btn-test" id="testApiBtn">测试API连接</button>
+        <div class="test-result" id="testResult"></div>
+      </div>
+
+      <div class="monitor-section">
+        <div class="section-title"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-phone"/></svg>局域网监控 · 手机查看进度</div>
+        <div class="form-group">
+          <label for="monitorUrl">监控服务地址</label>
+          <input type="text" id="monitorUrl" placeholder="http://127.0.0.1:8090">
+        </div>
+        <button type="button" class="lx-switch" id="monitorSwitch" role="switch" aria-checked="false">
+          <span class="lx-switch__track" aria-hidden="true"></span>
+          <span class="lx-switch__label">开启手机查看<small>手机与电脑连同一 Wi-Fi</small></span>
+        </button>
+        <button class="btn-save" id="saveMonitorBtn">保存监控设置</button>
+        <div class="test-result" id="monitorHint"></div>
+      </div>
+
+      <div class="update-section">
+        <div class="section-title"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-refresh"/></svg>版本更新</div>
+        <div class="form-group">
+          <label for="updateUrl">更新源地址（update.json）</label>
+          <input type="text" id="updateUrl" placeholder="https://你的地址/update.json">
+        </div>
+        <div class="model-row">
+          <button class="btn-save" id="saveUpdateBtn">保存更新源</button>
+          <button type="button" class="btn-detect" id="checkUpdateBtn">
+            <svg class="ico ico-sm" aria-hidden="true"><use href="#i-refresh"/></svg>检查更新
+          </button>
+        </div>
+        <div class="test-result" id="updateResult"></div>
+      </div>
+    </div>
+
+    <!-- 控制面板标签页 -->
+    <div class="tab-content" id="tab-control">
+      <div class="control-info">
+        <div class="info-card">
+          <div class="info-label">当前状态</div>
+          <div class="info-value" id="ctrlStatus">未开始</div>
+        </div>
+        <div class="info-card">
+          <div class="info-label">已批改</div>
+          <div class="info-value"><span id="ctrlCount">0</span> 份</div>
+        </div>
+      </div>
+
+      <div class="control-buttons">
+        <button class="ctrl-btn ctrl-start" id="ctrlStartBtn">
+          <svg class="ico" aria-hidden="true"><use href="#i-play"/></svg>开始自动阅卷
+        </button>
+        <button class="ctrl-btn ctrl-pause" id="ctrlPauseBtn" data-paused="0" disabled>
+          <svg class="ico" aria-hidden="true"><use href="#i-pause"/></svg><span id="pauseLabel">暂停</span>
+        </button>
+        <button class="ctrl-btn ctrl-stop" id="ctrlStopBtn" disabled>
+          <svg class="ico" aria-hidden="true"><use href="#i-stop"/></svg>停止
+        </button>
+        <button class="ctrl-btn ctrl-single" id="ctrlSingleBtn">
+          <svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg>批改当前试卷
+        </button>
+      </div>
+
+      <div class="tips-section">
+        <h3><svg class="ico ico-sm" aria-hidden="true"><use href="#i-bulb"/></svg>使用说明</h3>
+        <ol>
+          <li>在"题目与答案"标签页依次填写：<b>题目</b>、<b>标准答案</b>、<b>评分标准</b>（可选）、<b>满分</b></li>
+          <li>确认"API设置"中的配置正确</li>
+          <li>打开读书郎阅卷系统，进入阅卷界面</li>
+          <li>点击"开始自动阅卷"或使用页面上的浮动面板</li>
+          <li>扩展会先判断学生答案是否扣题，再按要点逐条核对给分</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- 历史记录标签页 -->
+    <div class="tab-content" id="tab-history">
+      <div class="history-header">
+        <div class="history-stats">
+          <span class="history-stat-item">
+            <span class="stat-num" id="historyTotal">0</span>
+            <span class="stat-label">总批改</span>
+          </span>
+          <span class="history-stat-item">
+            <span class="stat-num" id="historyAvg">0</span>
+            <span class="stat-label">平均分</span>
+          </span>
+          <span class="history-stat-item">
+            <span class="stat-num" id="historyFull">0</span>
+            <span class="stat-label">满分</span>
+          </span>
+        </div>
+        <div class="history-actions">
+          <button class="btn-refresh" id="refreshHistoryBtn"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-refresh"/></svg>刷新</button>
+          <button class="btn-clear-history" id="clearHistoryBtn"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-trash"/></svg>清除</button>
+        </div>
+      </div>
+      
+      <div class="history-list" id="historyList">
+        <div class="history-empty">
+          <div class="empty-icon"><svg class="ico ico-lg" aria-hidden="true"><use href="#i-doc"/></svg></div>
+          <div class="empty-text">暂无评分记录</div>
+          <div class="empty-desc">开始阅卷后，评分记录将显示在这里</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="save-tip" id="saveTip"></div>
+  </div>
+
+  <script src="lattice-field.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

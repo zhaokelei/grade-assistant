@@ -1,0 +1,23 @@
+{
+  "version": "1.1.6",
+  "date": "2026-11-21",
+  "notes": "示例清单：插件与监控程序各自比较版本后自动更新。",
+  "monitorUrl": "https://gitee.com/<用户名>/<仓库>/raw/master/dist/GradeMonitor.exe",
+  "pluginBase": "https://gitee.com/<用户名>/<仓库>/raw/master/auto-grader-extension",
+  "pluginFiles": [
+    "manifest.json",
+    "background.js",
+    "content.js",
+    "content.css",
+    "popup.html",
+    "popup.css",
+    "popup.js",
+    "lattice.css",
+    "lattice-field.js",
+    "timer-worker.js",
+    "icon.png",
+    "icon16.png",
+    "icon48.png",
+    "icon128.png"
+  ]
+}

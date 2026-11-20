@@ -1,0 +1,21 @@
+# 依赖与构建产物
+node_modules/
+*.exe
+*.zip
+GradeMonitor.exe
+
+# 运行期文件
+monitor-update.json
+plugin-update-tmp/
+update-new.exe
+apply-update.bat
+
+# 设计/调试临时文件
+.screenshots/
+.trae-html-share-packages/
+explore/
+.workbuddy/
+ask1.json
+ask1.out
+headers.txt
+gen-icon.js
