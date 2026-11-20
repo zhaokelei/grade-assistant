@@ -620,9 +620,15 @@ async function checkUpdate(updateUrl) {
     return { success: false, error: '未配置更新源地址', current: current };
   }
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12000);
+
   try {
     const sep = updateUrl.indexOf('?') === -1 ? '?' : '&';
-    const res = await fetch(updateUrl + sep + 't=' + Date.now(), { cache: 'no-store' });
+    const res = await fetch(updateUrl + sep + 't=' + Date.now(), {
+      cache: 'no-store',
+      signal: controller.signal
+    });
     if (!res.ok) {
       return { success: false, error: '更新源返回 ' + res.status, current: current };
     }
@@ -644,7 +650,10 @@ async function checkUpdate(updateUrl) {
       monitorUrl: data.monitor || ''
     };
   } catch (error) {
-    return { success: false, error: error.message, current: current };
+    const msg = error && error.name === 'AbortError' ? '请求超时（12 秒），请检查网络' : error.message;
+    return { success: false, error: msg, current: current };
+  } finally {
+    clearTimeout(timer);
   }
 }
 

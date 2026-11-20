@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bufio"
 	_ "embed"
 	"encoding/base64"
 	"encoding/json"
@@ -17,7 +18,10 @@ import (
 	"time"
 )
 
-const VERSION = "v1.1.8"
+const VERSION = "v1.1.9"
+
+// 内置更新源（与插件同一个清单），没配置时默认用它
+const BUILTIN_UPDATE_URL = "https://gh-proxy.com/https://raw.githubusercontent.com/zhaokelei/grade-assistant/main/update.json"
 
 //go:embed page.html
 var pageHTML string
@@ -35,15 +39,34 @@ var (
 )
 
 var (
-	updateURL  string
-	autoUpdate = true
-	needReload bool
-	updMu      sync.Mutex
-	upd        updInfo
-	pluginDir  string
+	updateURL   string
+	autoUpdate  = false // 默认只提示，不强制更新
+	needReload  bool
+	updMu       sync.Mutex
+	upd         updInfo
+	updSkipped  bool
+	pluginDir   string
+
+	logMu   sync.Mutex
+	logFile *os.File
 )
 
+// 同时输出到控制台和 monitor.log，控制台被关掉也能查
+func logf(format string, a ...interface{}) {
+	line := fmt.Sprintf(format, a...)
+
+	logMu.Lock()
+	defer logMu.Unlock()
+
+	fmt.Println(line)
+	if logFile != nil {
+		fmt.Fprintf(logFile, "%s %s\n", time.Now().Format("01-02 15:04:05"), line)
+		_ = logFile.Sync()
+	}
+}
+
 type updInfo struct {
+	Checked    bool     `json:"checked"`
 	HasUpdate  bool     `json:"hasUpdate"`
 	Latest     string   `json:"latest"`
 	Notes      string   `json:"notes"`
@@ -74,14 +97,29 @@ func initState() {
 
 func snapshot() map[string]interface{} {
 	mu.RLock()
-	defer mu.RUnlock()
-	out := make(map[string]interface{}, len(state))
+	out := make(map[string]interface{}, len(state)+8)
 	for k, v := range state {
 		out[k] = v
 	}
+	mu.RUnlock()
+
 	out["imageVersion"] = imgVer
 	out["imageUploads"] = imgUploads
 	out["lastImageAt"] = lastImgAt
+	out["version"] = VERSION
+
+	// 更新检查状态，页面据此显示「检查中 / 已是最新 / 发现新版本」
+	updMu.Lock()
+	out["updateChecked"] = upd.Checked
+	out["updateHas"] = upd.HasUpdate
+	out["updateLatest"] = upd.Latest
+	out["updateNotes"] = upd.Notes
+	out["updateSkipped"] = updSkipped
+	out["updateError"] = upd.Error
+	updMu.Unlock()
+
+	out["autoUpdate"] = autoUpdate
+
 	return out
 }
 
@@ -190,7 +228,7 @@ func checkUpdate() map[string]interface{} {
 	defer updMu.Unlock()
 
 	if updateURL == "" {
-		upd = updInfo{Error: "未配置更新源"}
+		upd = updInfo{Checked: true, Error: "未配置更新源"}
 		return map[string]interface{}{"success": false, "error": "未配置更新源", "current": VERSION}
 	}
 
@@ -200,14 +238,14 @@ func checkUpdate() map[string]interface{} {
 	}
 	resp, err := httpClient.Get(updateURL + sep + "t=" + fmt.Sprint(time.Now().UnixMilli()))
 	if err != nil {
-		upd = updInfo{Error: err.Error()}
+		upd = updInfo{Checked: true, Error: err.Error()}
 		return map[string]interface{}{"success": false, "error": err.Error(), "current": VERSION}
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		msg := "更新源返回 " + resp.Status
-		upd = updInfo{Error: msg}
+		upd = updInfo{Checked: true, Error: msg}
 		return map[string]interface{}{"success": false, "error": msg, "current": VERSION}
 	}
 
@@ -219,18 +257,18 @@ func checkUpdate() map[string]interface{} {
 		Files      []string `json:"pluginFiles"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&d); err != nil {
-		upd = updInfo{Error: "更新源格式错误"}
+		upd = updInfo{Checked: true, Error: "更新源格式错误"}
 		return map[string]interface{}{"success": false, "error": "更新源格式错误", "current": VERSION}
 	}
 
 	latest := strings.TrimPrefix(d.Version, "v")
 	if latest == "" {
-		upd = updInfo{Error: "更新源缺少 version"}
+		upd = updInfo{Checked: true, Error: "更新源缺少 version"}
 		return map[string]interface{}{"success": false, "error": "更新源缺少 version", "current": VERSION}
 	}
 
 	has := compareVer(latest, VERSION) > 0
-	upd = updInfo{HasUpdate: has, Latest: latest, Notes: d.Notes, MonitorURL: d.MonitorURL, PluginBase: d.PluginBase, Files: d.Files}
+	upd = updInfo{Checked: true, HasUpdate: has, Latest: latest, Notes: d.Notes, MonitorURL: d.MonitorURL, PluginBase: d.PluginBase, Files: d.Files}
 
 	return map[string]interface{}{
 		"success":   true,
@@ -424,32 +462,106 @@ func applySelfUpdate() (map[string]interface{}, error) {
 	return res, nil
 }
 
+// 检查更新并把结果显示出来（启动时和定时任务都走这里）
 func runAutoUpdate() {
+	logf("[更新] 正在检查更新…")
+
 	r := checkUpdate()
+
 	if ok, _ := r["success"].(bool); !ok {
+		logf("[更新] 检查失败：%v", r["error"])
+		broadcast()
 		return
 	}
+
 	if has, _ := r["hasUpdate"].(bool); !has {
+		logf("[更新] 已是最新版本 %s，正常启动", VERSION)
+		broadcast()
 		return
 	}
 
-	fmt.Println("[更新] 发现新版本 " + fmt.Sprint(r["latest"]))
+	latest := fmt.Sprint(r["latest"])
+	logf("[更新] 发现新版本 v%s（当前 %s）", latest, VERSION)
+	if notes := fmt.Sprint(r["notes"]); notes != "" && notes != "<nil>" {
+		logf("[更新] 更新内容：%s", notes)
+	}
+	broadcast()
 
-	if !autoUpdate {
-		fmt.Println("[更新] 已关闭自动更新，请在页面点「立即更新」")
+	// 默认不强制更新：控制台给 1/2 选择，页面也有按钮
+	if autoUpdate {
+		logf("[更新] 自动更新已开启，3 秒后开始更新…")
+		time.Sleep(3 * time.Second)
+		doSelfUpdate()
 		return
 	}
 
-	if res, err := updatePluginFiles(); err == nil {
-		fmt.Printf("[更新] 插件已更新 %v 个文件\n", res["files"])
-	} else {
-		fmt.Println("[更新] 插件跳过：" + err.Error())
+	logf("[更新] 1 = 立即更新    2 = 跳过继续（30 秒不操作自动跳过）")
+	go promptUpdateChoice()
+}
+
+// 控制台交互：等待用户输入 1 或 2
+func promptUpdateChoice() {
+	type result struct {
+		line string
+		err  error
+	}
+	ch := make(chan result, 1)
+
+	go func() {
+		reader := bufio.NewReader(os.Stdin)
+		line, err := reader.ReadString('\n')
+		ch <- result{line: line, err: err}
+	}()
+
+	select {
+	case res := <-ch:
+		choice := strings.TrimSpace(res.line)
+		if choice == "1" {
+			logf("[更新] 开始更新…")
+			doSelfUpdate()
+			return
+		}
+		logf("[更新] 已选择跳过，继续运行 %s", VERSION)
+		skipUpdate()
+
+	case <-time.After(30 * time.Second):
+		logf("[更新] 30 秒未操作，已跳过本次更新")
+		skipUpdate()
+	}
+}
+
+func skipUpdate() {
+	updMu.Lock()
+	updSkipped = true
+	updMu.Unlock()
+	broadcast()
+}
+
+// 真正执行更新：一次调用同时更新插件与监控程序自身
+func doSelfUpdate() {
+	logf("[更新] 开始更新（插件 + 监控程序）")
+
+	res, err := applySelfUpdate()
+	if err != nil {
+		logf("[更新] 失败：%v", err)
+		return
 	}
 
-	fmt.Println("[更新] 正在替换监控程序并重启…")
-	if _, err := applySelfUpdate(); err != nil {
-		fmt.Println("[更新] 失败：" + err.Error())
+	if ok, _ := res["success"].(bool); !ok {
+		logf("[更新] 失败：%v", res["error"])
+		return
 	}
+
+	// 插件那半边的结果
+	if pl, ok := res["plugin"].(map[string]interface{}); ok {
+		if pok, _ := pl["success"].(bool); pok {
+			logf("[更新] 插件已更新 %v 个文件 → %v（扩展会自行重载）", pl["files"], pl["dir"])
+		} else {
+			logf("[更新] 插件更新失败：%v", pl["error"])
+		}
+	}
+
+	logf("[更新] 监控程序已下载，正在替换并重启…")
 }
 
 // ---------------- HTTP 处理 ----------------
@@ -601,6 +713,11 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, 200, res)
 
+	// 用户选择「跳过本次更新」
+	case p == "/api/update/skip" && r.Method == "POST":
+		skipUpdate()
+		writeJSON(w, 200, map[string]bool{"ok": true})
+
 	case p == "/api/update/plugin" && r.Method == "POST":
 		res, err := updatePluginFiles()
 		if err != nil {
@@ -662,6 +779,15 @@ func lanIPs() []string {
 func main() {
 	initState()
 	loadUpdateConf()
+	if updateURL == "" {
+		updateURL = BUILTIN_UPDATE_URL
+	}
+
+	// 日志同时落盘，控制台被关掉也能事后查
+	if f, err := os.OpenFile(filepath.Join(appDir(), "monitor.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644); err == nil {
+		logFile = f
+		defer f.Close()
+	}
 
 	port := os.Getenv("MONITOR_PORT")
 	if port == "" {
@@ -670,28 +796,36 @@ func main() {
 
 	http.HandleFunc("/", handler)
 	go func() {
-		fmt.Println("阅卷监控服务已启动 " + VERSION)
-		fmt.Println()
-		fmt.Println("  电脑访问：http://127.0.0.1:" + port)
+		logf("阅卷监控服务已启动 %s", VERSION)
+		logf("")
+		logf("  电脑访问：http://127.0.0.1:" + port)
 		for _, ip := range lanIPs() {
-			fmt.Println("  手机访问：http://" + ip + ":" + port)
+			logf("  手机访问：http://" + ip + ":" + port)
 		}
-		fmt.Println()
-		fmt.Println("手机需与电脑连同一 Wi-Fi。若手机打不开，请在 Windows 防火墙中允许本程序访问网络。")
+		logf("")
+		logf("手机需与电脑连同一 Wi-Fi。若手机打不开，请在 Windows 防火墙中允许本程序访问网络。")
+		logf("")
 
-		if updateURL != "" {
-			fmt.Println("更新源：" + updateURL)
-			time.Sleep(6 * time.Second)
+		if updateURL == "" {
+			logf("[更新] 未配置更新源，跳过检查")
+			return
+		}
+
+		logf("[更新] 更新源：%s", updateURL)
+		logf("[更新] 自动安装：%v（false = 只提示，需手动确认）", autoUpdate)
+
+		// 启动后 3 秒检查一次，之后每 30 分钟一次
+		time.Sleep(3 * time.Second)
+		runAutoUpdate()
+
+		for {
+			time.Sleep(30 * time.Minute)
 			runAutoUpdate()
-			for {
-				time.Sleep(30 * time.Minute)
-				runAutoUpdate()
-			}
 		}
 	}()
 
 	if err := http.ListenAndServe("0.0.0.0:"+port, nil); err != nil {
-		fmt.Println("启动失败：" + err.Error())
+		logf("启动失败：%v", err)
 		os.Exit(1)
 	}
 }

@@ -116,6 +116,7 @@ body>*{position:relative;z-index:1}
 .update-btn{flex:none;min-height:32px;padding:0 12px;border:0;border-radius:var(--r-pill);background:var(--hot);color:#07080b;font-family:var(--f-ui);font-size:12px;font-weight:700;cursor:pointer;transition:transform var(--t-fast) var(--ease)}
 .update-btn:active{transform:scale(.96)}
 .update-btn:disabled{opacity:.6;cursor:progress}
+.update-btn.ghost{background:transparent;color:var(--hot);box-shadow:inset 0 0 0 1px rgb(255 90 31 / .45)}
 .paper-empty{display:flex;align-items:center;justify-content:center;min-height:120px;padding:20px;text-align:center;font-size:12px;line-height:1.6;color:var(--text-faint);border-radius:var(--r-1);background:var(--bg-2);box-shadow:inset 0 0 0 1px var(--line)}
 
 /* ---------- AI 思考 ---------- */
@@ -186,7 +187,7 @@ body>*{position:relative;z-index:1}
 <canvas id="field" aria-hidden="true"></canvas>
 <div class="head">
   <h1><svg class="ico-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 13.2l4.3 4.3L18 7.8"/></svg>阅卷监控</h1>
-  <span class="ver">LATTICE · v1.1.8</span>
+  <span class="ver">LATTICE · v1.1.9</span>
 </div>
 
 <section class="panel">
@@ -253,6 +254,7 @@ body>*{position:relative;z-index:1}
 
 <div class="update-bar" id="updateBar" hidden>
   <span class="update-text" id="updateText">发现新版本</span>
+  <button class="update-btn ghost" id="updateSkipBtn">跳过</button>
   <button class="update-btn" id="updateBtn">立即更新</button>
 </div>
 <div class="refresh" id="refresh">等待数据…</div>
@@ -599,6 +601,8 @@ function render(d) {
   }
 
   document.getElementById('refresh').textContent = '最后更新：' + (d.updatedAt ? new Date(d.updatedAt).toLocaleTimeString() : '暂无');
+
+  renderUpdateBar(d);
 }
 
 function escapeHtml(s) {
@@ -635,46 +639,94 @@ imgZoom.onclick = function () {
 
 
 
-// ---- 自动更新检查 ----
+// ---- 更新提示（状态由监控通过 SSE 推送） ----
 var updateBar = document.getElementById('updateBar');
 var updateText = document.getElementById('updateText');
 var updateBtn = document.getElementById('updateBtn');
+var updateSkipBtn = document.getElementById('updateSkipBtn');
+var updateBusy = false;
 
-async function checkSelfUpdate() {
-  try {
-    var r = await fetch('/api/update', { cache: 'no-store' });
-    var d = await r.json();
-    if (d && d.success && d.hasUpdate) {
-      updateText.textContent = '发现新版本 v' + d.latest + '（当前 ' + d.current + '）' + (d.notes ? ' · ' + d.notes : '');
-      updateBar.hidden = false;
-    }
-  } catch (e) {}
+function renderUpdateBar(d) {
+  if (!updateBar || updateBusy) return;
+
+  var checked = !!d.updateChecked;
+  var has = !!d.updateHas;
+  var skipped = !!d.updateSkipped;
+  var err = d.updateError || '';
+  var latest = d.updateLatest || '';
+  var cur = d.version || '';
+
+  if (!checked) {
+    updateBar.hidden = true;
+    return;
+  }
+
+  if (err && !has) {
+    updateText.textContent = '检查更新失败：' + err;
+    updateBtn.style.display = 'none';
+    updateSkipBtn.style.display = 'none';
+    updateBar.hidden = false;
+    return;
+  }
+
+  if (has && !skipped) {
+    updateText.textContent = '发现新版本 v' + latest + '（当前 ' + cur + '）· 会同时更新插件与监控程序';
+    updateBtn.style.display = '';
+    updateSkipBtn.style.display = '';
+    updateBar.hidden = false;
+    return;
+  }
+
+  if (!has && !window.__upToDateShown) {
+    window.__upToDateShown = true;
+    updateText.textContent = '已是最新版本 ' + cur;
+    updateBtn.style.display = 'none';
+    updateSkipBtn.style.display = 'none';
+    updateBar.hidden = false;
+    setTimeout(function () { updateBar.hidden = true; }, 6000);
+    return;
+  }
+
+  if (skipped) {
+    updateBar.hidden = true;
+    return;
+  }
 }
 
 updateBtn.onclick = async function () {
+  updateBusy = true;
   updateBtn.disabled = true;
+  updateSkipBtn.style.display = 'none';
   updateBtn.textContent = '更新中…';
+  updateText.textContent = '正在下载插件与监控程序，完成后会自动重启…';
+
   try {
     var r = await fetch('/api/update/apply', { method: 'POST' });
     var d = await r.json();
     if (d && d.success) {
       updateBtn.textContent = '即将重启…';
-      updateText.textContent = '已下载新版本，程序正在重启，页面稍后会自动刷新';
-      setTimeout(function () { location.reload(); }, 7000);
+      updateText.textContent = '已更新插件，监控程序正在重启，页面稍后自动刷新';
+      setTimeout(function () { location.reload(); }, 8000);
     } else {
+      updateBusy = false;
       updateBtn.disabled = false;
       updateBtn.textContent = '重试';
       updateText.textContent = '更新失败：' + ((d && d.error) || '未知错误');
     }
   } catch (e) {
+    updateBusy = false;
     updateBtn.disabled = false;
     updateBtn.textContent = '重试';
     updateText.textContent = '更新失败，请检查网络';
   }
 };
 
-setTimeout(checkSelfUpdate, 3000);
-setInterval(checkSelfUpdate, 30 * 60 * 1000);
+updateSkipBtn.onclick = async function () {
+  try {
+    await fetch('/api/update/skip', { method: 'POST' });
+  } catch (e) {}
+  updateBar.hidden = true;
+};
 
 // 点阵场初始化
 createLatticeField(document.getElementById('field'), { pitch: 16, maxPoints: 1400, radius: 96, push: 16, alpha: 0.13 });

@@ -29,3 +29,4 @@ _test*.json
 # 旧版 Node 服务与工具脚本
 monitor-server.js.bak
 .claude/
+.edge-tmp/

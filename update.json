@@ -1,8 +1,8 @@
 {
-  "version": "1.1.8",
+  "version": "1.1.9",
   "date": "2026-11-21",
-  "notes": "修复试卷图片同步：改由后台代理抓图，避开页面跨域限制；移除插件里的更新地址输入框（已内置）；监控页显示图片接收统计便于排查。",
-  "monitorUrl": "https://gh-proxy.com/https://github.com/zhaokelei/grade-assistant/releases/download/v1.1.8/GradeMonitor.exe",
+  "notes": "启动即检查更新并显示过程；发现新版只提示不强制，可按 1 更新或 2 跳过（页面也有跳过按钮）；监控同时更新插件与自身；日志写入 monitor.log。",
+  "monitorUrl": "https://gh-proxy.com/https://github.com/zhaokelei/grade-assistant/releases/download/v1.1.9/GradeMonitor.exe",
   "pluginBase": "https://gh-proxy.com/https://raw.githubusercontent.com/zhaokelei/grade-assistant/main/auto-grader-extension",
   "pluginFiles": [
     "manifest.json",
