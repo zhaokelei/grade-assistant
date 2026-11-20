@@ -35,7 +35,7 @@
       <h1><svg class="ico ico-logo" aria-hidden="true"><use href="#i-logo"/></svg>自动阅卷助手</h1>
       <p class="subtitle">AI智能批改，高效阅卷</p>
       <div class="header-actions">
-        <span class="version-tag" id="versionTag">v1.1.7</span>
+        <span class="version-tag" id="versionTag">v1.1.8</span>
         <button type="button" class="btn-icon" id="openWindowBtn" aria-label="在新窗口打开" title="在新窗口打开（复制答案时不会被打断）">
           <svg class="ico ico-sm" aria-hidden="true"><use href="#i-window"/></svg>
         </button>
@@ -132,12 +132,8 @@
 
       <div class="update-section">
         <div class="section-title"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-refresh"/></svg>版本更新</div>
-        <div class="form-group">
-          <label for="updateUrl">更新源地址（update.json）</label>
-          <input type="text" id="updateUrl" placeholder="https://你的地址/update.json">
-        </div>
-        <div class="model-row">
-          <button class="btn-save" id="saveUpdateBtn">保存更新源</button>
+        <div class="update-row">
+          <span class="update-cur" id="updateCur">当前版本</span>
           <button type="button" class="btn-detect" id="checkUpdateBtn">
             <svg class="ico ico-sm" aria-hidden="true"><use href="#i-refresh"/></svg>检查更新
           </button>

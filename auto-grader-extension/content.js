@@ -327,23 +327,39 @@
     const imgSrc = img.src;
     const MAX_EDGE = 2000; // 长边限幅：只在超大截图时才缩，避免缩得太多影响识别
 
-    // 1) 优先直接抓原图转 base64：同源 fetch 带登录态，且不受 canvas 跨域污染
+    // 1) 把原图转成 base64
+    //    优先交给后台抓取：后台不受页面 CORS 限制，图床在别的域名也能拿到
     let sourceUrl = imgSrc;
-    try {
-      const res = await fetch(imgSrc, { credentials: 'include' });
-      if (res.ok) {
-        const blob = await res.blob();
-        if (blob && blob.size > 0) {
-          sourceUrl = await new Promise((resolve, reject) => {
-            const fr = new FileReader();
-            fr.onload = () => resolve(fr.result);
-            fr.onerror = () => reject(new Error('读取图片失败'));
-            fr.readAsDataURL(blob);
-          });
+    if (imgSrc && /^https?:/i.test(imgSrc)) {
+      let fetched = false;
+
+      try {
+        const viaBg = await safeSendMessage({ type: 'FETCH_IMAGE', url: imgSrc });
+        if (viaBg && viaBg.success && viaBg.dataUrl) {
+          sourceUrl = viaBg.dataUrl;
+          fetched = true;
+        }
+      } catch (e) {}
+
+      // 后台也拿不到时，退回到页面内直接取（同源图有效）
+      if (!fetched) {
+        try {
+          const res = await fetch(imgSrc, { credentials: 'include' });
+          if (res.ok) {
+            const blob = await res.blob();
+            if (blob && blob.size > 0) {
+              sourceUrl = await new Promise((resolve, reject) => {
+                const fr = new FileReader();
+                fr.onload = () => resolve(fr.result);
+                fr.onerror = () => reject(new Error('读取图片失败'));
+                fr.readAsDataURL(blob);
+              });
+            }
+          }
+        } catch (e) {
+          // 两条路都失败，保留原始地址（后续会提示无法同步手机端）
         }
       }
-    } catch (e) {
-      // 抓取失败就继续用原始地址
     }
 
     // 2) 画到 canvas：限幅、空白检测、重新编码为 JPEG

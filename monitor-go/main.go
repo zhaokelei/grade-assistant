@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-const VERSION = "v1.1.7"
+const VERSION = "v1.1.8"
 
 //go:embed page.html
 var pageHTML string
@@ -28,6 +28,8 @@ var (
 	imgMime  string
 	imgData  []byte
 	imgVer   = 0
+	imgUploads = 0
+	lastImgAt  int64
 	clients  = map[chan string]struct{}{}
 	clientMu sync.Mutex
 )
@@ -78,6 +80,8 @@ func snapshot() map[string]interface{} {
 		out[k] = v
 	}
 	out["imageVersion"] = imgVer
+	out["imageUploads"] = imgUploads
+	out["lastImageAt"] = lastImgAt
 	return out
 }
 
@@ -557,6 +561,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		imgMime = mime
 		imgData = raw
 		imgVer++
+		imgUploads++
+		lastImgAt = time.Now().UnixMilli()
 		v := imgVer
 		mu.Unlock()
 		broadcast()

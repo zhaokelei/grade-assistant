@@ -1,8 +1,8 @@
 {
-  "version": "1.1.7",
+  "version": "1.1.8",
   "date": "2026-11-21",
-  "notes": "监控页宽屏适配：手机单列 / 平板两列 / PC 三列，左右不再留白；Stream 空态保留占位。",
-  "monitorUrl": "https://gh-proxy.com/https://github.com/zhaokelei/grade-assistant/releases/download/v1.1.7/GradeMonitor.exe",
+  "notes": "修复试卷图片同步：改由后台代理抓图，避开页面跨域限制；移除插件里的更新地址输入框（已内置）；监控页显示图片接收统计便于排查。",
+  "monitorUrl": "https://gh-proxy.com/https://github.com/zhaokelei/grade-assistant/releases/download/v1.1.8/GradeMonitor.exe",
   "pluginBase": "https://gh-proxy.com/https://raw.githubusercontent.com/zhaokelei/grade-assistant/main/auto-grader-extension",
   "pluginFiles": [
     "manifest.json",

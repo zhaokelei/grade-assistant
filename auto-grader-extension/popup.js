@@ -1,5 +1,8 @@
 // popup.js - 弹出面板逻辑
 
+// 内置更新源（与监控程序共用同一个清单）
+const BUILTIN_UPDATE_URL = 'https://gh-proxy.com/https://raw.githubusercontent.com/zhaokelei/grade-assistant/main/update.json';
+
 const DEFAULT_CONFIG = {
   apiUrl: 'http://47.122.117.143:57894/v1/chat/completions',
   // 密钥不入库：首次使用请在「02 接口」页填写并保存
@@ -188,7 +191,11 @@ function fillForm() {
   document.getElementById('apiKey').value = currentConfig.apiKey || '';
   document.getElementById('model').value = currentConfig.model || '';
   document.getElementById('monitorUrl').value = currentConfig.monitorUrl || 'http://127.0.0.1:8090';
-  document.getElementById('updateUrl').value = currentConfig.updateUrl || '';
+  const curVerEl = document.getElementById('updateCur');
+  if (curVerEl) curVerEl.textContent = '当前版本 v' + chrome.runtime.getManifest().version;
+
+  // 打开面板时把内置更新源同步给本机监控，保证它能自动更新
+  pushUpdateUrlToMonitor(BUILTIN_UPDATE_URL);
   setMonitorSwitch(!!currentConfig.monitorEnabled);
   document.getElementById('question').value = currentConfig.question || '';
   document.getElementById('standardAnswer').value = currentConfig.standardAnswer || '';
@@ -231,7 +238,6 @@ function bindEvents() {
   document.getElementById('saveMonitorBtn').addEventListener('click', saveMonitorConfig);
 
   // 版本更新
-  document.getElementById('saveUpdateBtn').addEventListener('click', saveUpdateUrl);
   document.getElementById('checkUpdateBtn').addEventListener('click', checkUpdate);
 
   // 手机查看开关
@@ -409,18 +415,6 @@ function saveMonitorConfig() {
 
 // ============ 版本更新 ============
 
-function saveUpdateUrl() {
-  const updateUrl = document.getElementById('updateUrl').value.trim();
-
-  chrome.runtime.sendMessage({ type: 'SAVE_CONFIG', config: { updateUrl } }, () => {
-    chrome.runtime.lastError;
-    currentConfig = { ...currentConfig, updateUrl };
-    showTip('更新源已保存');
-    flushDraft();
-    pushUpdateUrlToMonitor(updateUrl);
-  });
-}
-
 // 把更新源同步给本机监控服务，让它也能检查更新
 function pushUpdateUrlToMonitor(updateUrl) {
   const base = String(
@@ -436,13 +430,7 @@ function pushUpdateUrlToMonitor(updateUrl) {
 
 async function checkUpdate() {
   const box = document.getElementById('updateResult');
-  const updateUrl = document.getElementById('updateUrl').value.trim();
-
-  if (!updateUrl) {
-    box.className = 'test-result error';
-    box.textContent = '请先填写更新源地址（update.json 的网址）';
-    return;
-  }
+  const updateUrl = BUILTIN_UPDATE_URL;
 
   box.className = 'test-result loading';
   box.textContent = '正在检查更新…';

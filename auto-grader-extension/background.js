@@ -554,12 +554,49 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   // 检查更新
   if (request.type === 'CHECK_UPDATE') {
-    checkUpdate(request.updateUrl).then(result => {
+    checkUpdate(request.updateUrl || BUILTIN_UPDATE_URL).then(result => {
+      sendResponse(result);
+    });
+    return true;
+  }
+
+  // 后台代抓图片：后台有 host 权限，不受页面 CORS 限制
+  if (request.type === 'FETCH_IMAGE') {
+    fetchImageAsBase64(request.url).then(result => {
       sendResponse(result);
     });
     return true;
   }
 });
+
+// 内置更新源（插件与监控共用）
+const BUILTIN_UPDATE_URL = 'https://gh-proxy.com/https://raw.githubusercontent.com/zhaokelei/grade-assistant/main/update.json';
+
+function bufferToBase64(buf) {
+  const bytes = new Uint8Array(buf);
+  const chunk = 0x8000;
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+async function fetchImageAsBase64(url) {
+  try {
+    const res = await fetch(url, { credentials: 'include' });
+    if (!res.ok) return { success: false, error: 'HTTP ' + res.status };
+
+    const blob = await res.blob();
+    if (!blob || !blob.size) return { success: false, error: '图片为空' };
+
+    const buf = await blob.arrayBuffer();
+    const mime = blob.type && blob.type.indexOf('image/') === 0 ? blob.type : 'image/png';
+    return { success: true, dataUrl: 'data:' + mime + ';base64,' + bufferToBase64(buf), size: blob.size };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
 
 // 版本号比较：a>b 返回 1，相等 0，a<b 返回 -1
 function compareVersion(a, b) {

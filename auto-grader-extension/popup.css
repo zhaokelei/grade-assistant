@@ -1270,3 +1270,17 @@ body::-webkit-scrollbar-track {
   margin-top: 8px;
   flex-wrap: wrap;
 }
+
+.update-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.update-cur {
+  font-family: var(--f-ui);
+  font-size: var(--t-12);
+  color: var(--text-dim);
+  letter-spacing: .02em;
+}

@@ -186,7 +186,7 @@ body>*{position:relative;z-index:1}
 <canvas id="field" aria-hidden="true"></canvas>
 <div class="head">
   <h1><svg class="ico-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 13.2l4.3 4.3L18 7.8"/></svg>阅卷监控</h1>
-  <span class="ver">LATTICE · v1.1.7</span>
+  <span class="ver">LATTICE · v1.1.8</span>
 </div>
 
 <section class="panel">
@@ -501,9 +501,11 @@ function render(d) {
     paperImg.style.display = 'none';
     if (paperEmpty) {
       paperEmpty.style.display = 'block';
-      paperEmpty.textContent = d.status && d.status.indexOf('阅卷') !== -1
-        ? '正在获取试卷图片…'
-        : '等待上传试卷图片…开始批改后自动显示';
+      var upCount = d.imageUploads || 0;
+      var upTime = d.lastImageAt ? new Date(d.lastImageAt).toLocaleTimeString('zh-CN', { hour12: false }) : '';
+      paperEmpty.textContent = upCount > 0
+        ? ('已收到 ' + upCount + ' 张试卷图，最后上传 ' + upTime + '。切到下一份时会自动刷新。')
+        : '暂未收到试卷图片。若正在批改，请确认插件「02 接口」页已打开「开启手机查看」并保存。';
     }
     paperCard.style.display = 'block';
   }
