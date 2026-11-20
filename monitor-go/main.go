@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-const VERSION = "v1.1.6"
+const VERSION = "v1.1.7"
 
 //go:embed page.html
 var pageHTML string

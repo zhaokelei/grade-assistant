@@ -1,8 +1,8 @@
 {
-  "version": "1.1.6",
+  "version": "1.1.7",
   "date": "2026-11-21",
-  "notes": "监控程序改用 Go 重写，体积从 96MB 降到 5.6MB，启动更快；插件自动替换并重载、监控自动更新一并可用。",
-  "monitorUrl": "https://gh-proxy.com/https://github.com/zhaokelei/grade-assistant/releases/download/v1.1.6/GradeMonitor.exe",
+  "notes": "监控页宽屏适配：手机单列 / 平板两列 / PC 三列，左右不再留白；Stream 空态保留占位。",
+  "monitorUrl": "https://gh-proxy.com/https://github.com/zhaokelei/grade-assistant/releases/download/v1.1.7/GradeMonitor.exe",
   "pluginBase": "https://gh-proxy.com/https://raw.githubusercontent.com/zhaokelei/grade-assistant/main/auto-grader-extension",
   "pluginFiles": [
     "manifest.json",

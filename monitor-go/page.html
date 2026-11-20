@@ -145,13 +145,48 @@ body>*{position:relative;z-index:1}
 .log.divider{display:none}
 .empty{padding:18px 0;text-align:center;font-size:var(--t-12);color:var(--text-faint)}
 .refresh{text-align:center;font-family:var(--f-dot);font-weight:900;font-size:10px;letter-spacing:.06em;color:var(--text-faint)}
+
+/* ===== 响应式：手机单列 / 平板两列 / PC 三列 ===== */
+.grid{display:flex;flex-direction:column}
+.col{min-width:0}
+.col>.section:first-child{margin-top:var(--s-4)}
+
+@media (min-width:760px){
+  body{max-width:1080px;padding:18px 22px 30px}
+  .grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--s-3);align-items:start;margin-top:var(--s-4)}
+  .col{display:flex;flex-direction:column;gap:var(--s-3)}
+  .col>.section,.col>.section:first-child{margin:0}
+  .col>.panel,.col>.scores,.col>.logs{margin:0}
+  .col-side{grid-column:1/-1}
+  .col-stream .stream-text{max-height:34dvh}
+  .col-log .logs{max-height:34dvh}
+  .update-bar{margin-top:var(--s-4)}
+}
+
+@media (min-width:1000px){
+  body{max-width:1360px}
+  .grid{grid-template-columns:minmax(0,1.12fr) minmax(0,1fr) minmax(0,1.06fr)}
+  .col-side{grid-column:auto}
+  .col-stream .stream-panel{min-height:44vh}
+  .col-log .logs{min-height:44vh}
+  .col-stream .stream-text{max-height:calc(100vh - 350px)}
+  .col-log .logs{max-height:calc(100vh - 290px)}
+  .refresh{text-align:center}
+}
+
+@media (min-width:1460px){
+  body{max-width:1580px}
+  .col-stream .stream-text{max-height:calc(100vh - 330px)}
+}
+
+.stream-text.is-empty{color:var(--text-faint)}
 </style>
 </head>
 <body>
 <canvas id="field" aria-hidden="true"></canvas>
 <div class="head">
   <h1><svg class="ico-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 13.2l4.3 4.3L18 7.8"/></svg>阅卷监控</h1>
-  <span class="ver">LATTICE · v1.1.6</span>
+  <span class="ver">LATTICE · v1.1.7</span>
 </div>
 
 <section class="panel">
@@ -170,45 +205,51 @@ body>*{position:relative;z-index:1}
   </div>
 </section>
 
-<section class="panel stream-panel" id="streamCard" style="display:none">
-  <div class="stream-title">Stream / AI 实时思考</div>
-  <div class="stream-text" id="streamText"></div>
-</section>
+<div class="grid">
+  <div class="col col-stream">
+    <section class="panel stream-panel" id="streamCard">
+      <div class="stream-title">Stream / AI 实时思考</div>
+      <div class="stream-text" id="streamText">等待 AI 实时思考内容…</div>
+    </section>
+  </div>
 
-<div class="section">Log / 批改日志</div>
-<div class="logs" id="logs"><div class="empty">暂无日志</div></div>
+  <div class="col col-log">
+    <div class="section">Log / 批改日志</div>
+    <div class="logs" id="logs"><div class="empty">暂无日志</div></div>
+  </div>
 
+  <div class="col col-side">
+    <section class="panel" id="paperCard" style="display:none">
+      <div class="paper-head"><span class="paper-title">Paper / 当前试卷</span><span class="paper-tip">点图放大</span></div>
+      <div class="paper-empty" id="paperEmpty">等待上传试卷图片…开始批改后自动显示</div>
+      <img class="paper-img" id="paperImg" alt="当前试卷" style="display:none" />
+    </section>
 
+    <div class="section">Recent / 最近成绩</div>
+    <div class="scores" id="scores"><div class="empty" style="grid-column:1/-1">暂无记录</div></div>
 
-<section class="panel" id="paperCard" style="display:none">
-  <div class="paper-head"><span class="paper-title">Paper / 当前试卷</span><span class="paper-tip">点图放大</span></div>
-  <div class="paper-empty" id="paperEmpty">等待上传试卷图片…开始批改后自动显示</div>
-  <img class="paper-img" id="paperImg" alt="当前试卷" style="display:none" />
-</section>
+    <section class="panel" id="taskCard" style="display:none">
+      <div class="task-head">
+        <span class="task-title">Task / 本题</span>
+        <span class="task-tag" id="taskScoreTag"></span>
+      </div>
+      <span class="kicker">Question · 问题是什么</span>
+      <div class="task-text" id="taskQuestion"></div>
+      <details class="task-fold" id="answerFold">
+        <summary>标准答案</summary>
+        <div class="task-text" id="taskAnswer"></div>
+      </details>
+      <details class="task-fold" id="criteriaFold">
+        <summary>评分标准</summary>
+        <div class="task-text" id="taskCriteria"></div>
+      </details>
+    </section>
+  </div>
+</div>
 
 <div class="img-zoom" id="imgZoom" hidden>
   <img id="imgZoomPic" alt="试卷大图" />
 </div>
-
-<div class="section">Recent / 最近成绩</div>
-<div class="scores" id="scores"><div class="empty" style="grid-column:1/-1">暂无记录</div></div>
-
-<section class="panel" id="taskCard" style="display:none">
-  <div class="task-head">
-    <span class="task-title">Task / 本题</span>
-    <span class="task-tag" id="taskScoreTag"></span>
-  </div>
-  <span class="kicker">Question · 问题是什么</span>
-  <div class="task-text" id="taskQuestion"></div>
-  <details class="task-fold" id="answerFold">
-    <summary>标准答案</summary>
-    <div class="task-text" id="taskAnswer"></div>
-  </details>
-  <details class="task-fold" id="criteriaFold">
-    <summary>评分标准</summary>
-    <div class="task-text" id="taskCriteria"></div>
-  </details>
-</section>
 
 <div class="update-bar" id="updateBar" hidden>
   <span class="update-text" id="updateText">发现新版本</span>
@@ -467,19 +508,15 @@ function render(d) {
     paperCard.style.display = 'block';
   }
 
-  // 实时思考内容
-  var streamCard = document.getElementById('streamCard');
+  // 实时思考内容（空时保留占位，宽屏下不会空出一列）
   var streamEl = document.getElementById('streamText');
   var sText = d.streamText || '';
-  if (sText) {
-    streamCard.style.display = 'block';
-    if (streamEl.textContent !== sText) {
-      streamEl.textContent = sText;
-      streamEl.scrollTop = streamEl.scrollHeight;
-    }
-  } else {
-    streamCard.style.display = 'none';
+  var streamShown = sText || '等待 AI 实时思考内容…';
+  if (streamEl.textContent !== streamShown) {
+    streamEl.textContent = streamShown;
+    streamEl.scrollTop = streamEl.scrollHeight;
   }
+  streamEl.classList.toggle('is-empty', !sText);
 
   document.getElementById('count').textContent = d.gradedCount || 0;
   document.getElementById('full').textContent = d.totalScore || '-';
