@@ -430,66 +430,43 @@ function pushUpdateUrlToMonitor(updateUrl) {
 
 async function checkUpdate() {
   const box = document.getElementById('updateResult');
-  const updateUrl = BUILTIN_UPDATE_URL;
+
+  // 浏览器不能直接读 FTP，统一问本机监控程序
+  const base = String(
+    document.getElementById('monitorUrl').value.trim() || currentConfig.monitorUrl || ''
+  ).replace(/\/+$/, '');
+
+  if (!base) {
+    box.className = 'test-result error';
+    box.textContent = '请先填写监控服务地址';
+    return;
+  }
 
   box.className = 'test-result loading';
   box.textContent = '正在检查更新…';
 
-  let result = null;
   try {
-    result = await chrome.runtime.sendMessage({ type: 'CHECK_UPDATE', updateUrl: updateUrl });
-  } catch (e) {
-    result = { success: false, error: e.message };
-  }
+    const res = await fetch(base + '/api/update', { cache: 'no-store' });
+    const d = await res.json();
 
-  if (!result || !result.success) {
-    box.className = 'test-result error';
-    box.textContent = '检查失败：' + ((result && result.error) || '未知错误');
-    return;
-  }
+    if (!d || !d.success) {
+      box.className = 'test-result error';
+      box.textContent = '检查失败：' + ((d && d.error) || '未知错误');
+      return;
+    }
 
-  if (!result.hasUpdate) {
+    if (!d.hasUpdate) {
+      box.className = 'test-result success';
+      box.textContent = '已是最新版本 v' + d.current;
+      return;
+    }
+
     box.className = 'test-result success';
-    box.textContent = '已是最新版本 v' + result.current;
-    return;
+    box.textContent = '发现新版本 v' + d.latest + '（当前 v' + d.current + '），到监控页面点「立即更新」即可';
+  } catch (e) {
+    box.className = 'test-result error';
+    box.textContent = '无法连接监控程序，请先启动「一键阅卷监控.exe」';
   }
-
-  box.className = 'test-result success';
-  box.innerHTML = '';
-
-  const head = document.createElement('div');
-  head.textContent = '发现新版本 v' + result.latest + '（当前 v' + result.current + '）';
-  box.appendChild(head);
-
-  if (result.notes) {
-    const notes = document.createElement('div');
-    notes.className = 'update-notes';
-    notes.textContent = result.notes;
-    box.appendChild(notes);
-  }
-
-  const actions = document.createElement('div');
-  actions.className = 'update-actions';
-
-  if (result.pluginUrl) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'btn-detect';
-    btn.textContent = '下载插件包';
-    btn.addEventListener('click', () => downloadFile(result.pluginUrl));
-    actions.appendChild(btn);
-  }
-
-  if (result.monitorUrl) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'btn-detect';
-    btn.textContent = '下载监控程序';
-    btn.addEventListener('click', () => downloadFile(result.monitorUrl));
-    actions.appendChild(btn);
-  }
-
-  box.appendChild(actions);
 }
 
 function downloadFile(url) {

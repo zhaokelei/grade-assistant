@@ -1,9 +1,9 @@
 {
-  "version": "1.1.9",
+  "version": "1.2.0",
   "date": "2026-11-21",
-  "notes": "启动即检查更新并显示过程；发现新版只提示不强制，可按 1 更新或 2 跳过（页面也有跳过按钮）；监控同时更新插件与自身；日志写入 monitor.log。",
-  "monitorUrl": "https://gh-proxy.com/https://github.com/zhaokelei/grade-assistant/releases/download/v1.1.9/GradeMonitor.exe",
-  "pluginBase": "https://gh-proxy.com/https://raw.githubusercontent.com/zhaokelei/grade-assistant/main/auto-grader-extension",
+  "notes": "更新源切换到自有 FTP：启动检查、按提示选择更新；监控一次同时更新插件与自身；FTP 批量下载复用连接，14 个文件约 5 秒。",
+  "monitorUrl": "ftp://140.143.141.192:21/grade-assistant/GradeMonitor.exe",
+  "pluginBase": "ftp://140.143.141.192:21/grade-assistant/plugin",
   "pluginFiles": [
     "manifest.json",
     "background.js",

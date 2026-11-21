@@ -30,3 +30,6 @@ _test*.json
 monitor-server.js.bak
 .claude/
 .edge-tmp/
+
+monitor-go/monitor.log
+monitor-go/run-test*.log

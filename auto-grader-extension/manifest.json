@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "读书郎自动阅卷助手",
-  "version": "1.1.9",
+  "version": "1.2.0",
   "description": "调用大模型API自动批改试卷，根据标准答案和完成度智能打分",
   "permissions": [
     "storage",

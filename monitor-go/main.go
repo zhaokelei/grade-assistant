@@ -10,18 +10,28 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
-const VERSION = "v1.1.9"
+const VERSION = "v1.2.0"
 
 // 内置更新源（与插件同一个清单），没配置时默认用它
-const BUILTIN_UPDATE_URL = "https://gh-proxy.com/https://raw.githubusercontent.com/zhaokelei/grade-assistant/main/update.json"
+// FTP 更新源（用户自有服务器）
+const (
+	FTP_HOST = "140.143.141.192:21"
+	FTP_USER = "xiaolei"
+	FTP_PASS = "969595288aA"
+	FTP_BASE = "/grade-assistant"
+)
+
+const BUILTIN_UPDATE_URL = "ftp://140.143.141.192:21/grade-assistant/update.json"
 
 //go:embed page.html
 var pageHTML string
@@ -232,21 +242,20 @@ func checkUpdate() map[string]interface{} {
 		return map[string]interface{}{"success": false, "error": "未配置更新源", "current": VERSION}
 	}
 
-	sep := "?"
-	if strings.Contains(updateURL, "?") {
-		sep = "&"
+	// http 源加时间戳防缓存；ftp 不需要
+	target := updateURL
+	if strings.HasPrefix(target, "http") {
+		sep := "?"
+		if strings.Contains(target, "?") {
+			sep = "&"
+		}
+		target = target + sep + "t=" + fmt.Sprint(time.Now().UnixMilli())
 	}
-	resp, err := httpClient.Get(updateURL + sep + "t=" + fmt.Sprint(time.Now().UnixMilli()))
+
+	body, err := fetchBytes(target)
 	if err != nil {
 		upd = updInfo{Checked: true, Error: err.Error()}
 		return map[string]interface{}{"success": false, "error": err.Error(), "current": VERSION}
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		msg := "更新源返回 " + resp.Status
-		upd = updInfo{Checked: true, Error: msg}
-		return map[string]interface{}{"success": false, "error": msg, "current": VERSION}
 	}
 
 	var d struct {
@@ -256,7 +265,7 @@ func checkUpdate() map[string]interface{} {
 		PluginBase string   `json:"pluginBase"`
 		Files      []string `json:"pluginFiles"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&d); err != nil {
+	if err := json.Unmarshal(body, &d); err != nil {
 		upd = updInfo{Checked: true, Error: "更新源格式错误"}
 		return map[string]interface{}{"success": false, "error": "更新源格式错误", "current": VERSION}
 	}
@@ -303,40 +312,64 @@ func resolvePluginDir() string {
 	return ""
 }
 
-func fetchWithRetry(url string) ([]byte, error) {
-	ua := "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-
-	var lastErr error
-	for attempt := 0; attempt < 3; attempt++ {
-		req, err := http.NewRequest("GET", url, nil)
+// 统一取字节：ftp:// 走内置 FTP 客户端，其余走 HTTP
+func fetchBytes(rawURL string) ([]byte, error) {
+	if strings.HasPrefix(rawURL, "ftp://") {
+		u, err := url.Parse(rawURL)
 		if err != nil {
 			return nil, err
 		}
-		req.Header.Set("User-Agent", ua)
-		req.Header.Set("Referer", "https://github.com/")
 
-		resp, err := httpClient.Do(req)
-		if err == nil {
-			if resp.StatusCode == 200 {
-				b, err := io.ReadAll(resp.Body)
-				resp.Body.Close()
-				if err != nil {
-					return nil, err
-				}
-				return b, nil
+		user, pass := FTP_USER, FTP_PASS
+		if u.User != nil {
+			if n := u.User.Username(); n != "" {
+				user = n
 			}
-			code := resp.StatusCode
-			resp.Body.Close()
-			lastErr = fmt.Errorf("HTTP %d", code)
-			if code == 429 || code == 451 || code >= 500 {
-				time.Sleep(time.Duration(900*(attempt+1)) * time.Millisecond)
-				continue
+			if p, ok := u.User.Password(); ok {
+				pass = p
 			}
-			return nil, lastErr
 		}
-		lastErr = err
-		time.Sleep(time.Duration(600*(attempt+1)) * time.Millisecond)
+
+		return ftpDownload(u.Host, user, pass, u.Path, 25*time.Second)
 	}
+
+	req, err := http.NewRequest("GET", rawURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0")
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+
+	return io.ReadAll(resp.Body)
+}
+
+func fetchWithRetry(rawURL string) ([]byte, error) {
+	var lastErr error
+
+	for attempt := 0; attempt < 3; attempt++ {
+		b, err := fetchBytes(rawURL)
+		if err == nil && len(b) > 0 {
+			return b, nil
+		}
+		if err != nil {
+			lastErr = err
+		} else {
+			lastErr = fmt.Errorf("内容为空")
+		}
+		if attempt < 2 {
+			time.Sleep(time.Duration(800*(attempt+1)) * time.Millisecond)
+		}
+	}
+
 	return nil, lastErr
 }
 
@@ -363,12 +396,47 @@ func updatePluginFiles() (map[string]interface{}, error) {
 
 	base := strings.TrimRight(info.PluginBase, "/")
 
-	for _, name := range info.Files {
-		b, err := fetchWithRetry(base + "/" + name)
-		if err != nil {
+	// 下载阶段：FTP 复用一条控制连接批量拉，HTTP 逐个拉
+	downloaded := make(map[string][]byte, len(info.Files))
+
+	if strings.HasPrefix(base, "ftp://") {
+		u, perr := url.Parse(base)
+		if perr != nil {
 			_ = os.RemoveAll(tmp)
-			return nil, fmt.Errorf("下载 %s 失败（%v）", name, err)
+			return nil, perr
 		}
+
+		user, pass := FTP_USER, FTP_PASS
+		if u.User != nil {
+			if n := u.User.Username(); n != "" {
+				user = n
+			}
+			if p, ok := u.User.Password(); ok {
+				pass = p
+			}
+		}
+
+		var derr error
+		downloaded, derr = ftpDownloadMany(u.Host, user, pass, u.Path, info.Files, 60*time.Second)
+		if derr != nil {
+			_ = os.RemoveAll(tmp)
+			return nil, fmt.Errorf("从 FTP 下载插件失败：%v", derr)
+		}
+	} else {
+		for _, name := range info.Files {
+			b, err := fetchWithRetry(base + "/" + name)
+			if err != nil {
+				_ = os.RemoveAll(tmp)
+				return nil, fmt.Errorf("下载 %s 失败（%v）", name, err)
+			}
+			downloaded[name] = b
+			time.Sleep(200 * time.Millisecond)
+		}
+	}
+
+	// 落盘阶段：先全部写到临时目录，成功后再整体覆盖
+	for _, name := range info.Files {
+		b := downloaded[name]
 		if len(b) == 0 {
 			_ = os.RemoveAll(tmp)
 			return nil, fmt.Errorf("%s 内容为空", name)
@@ -377,7 +445,6 @@ func updatePluginFiles() (map[string]interface{}, error) {
 			_ = os.RemoveAll(tmp)
 			return nil, err
 		}
-		time.Sleep(200 * time.Millisecond) // 控制节奏，避免被限流
 	}
 
 	for _, name := range info.Files {
@@ -433,23 +500,23 @@ func applySelfUpdate() (map[string]interface{}, error) {
 		return map[string]interface{}{"success": false, "error": "写入新版本失败：" + err.Error()}, nil
 	}
 
-	bat := filepath.Join(dir, "apply-update.bat")
-	lines := []string{
-		"@echo off",
-		"timeout /t 2 /nobreak >nul",
-		`move /y "` + tmpExe + `" "` + exe + `"`,
-		`start "" "` + exe + `"`,
-		`del "%~f0"`,
+	// 由新版本自己充当更新器：等旧进程退出 → 重命名替换 → 拉起新进程
+	// 不用 bat/cmd，避免没有控制台时 timeout 失效、文件占用导致 move 失败
+	updater := exec.Command(tmpExe, "--apply-update", exe)
+	updater.Stdin = nil
+	updater.Stdout = nil
+	updater.Stderr = nil
+	// 脱离父进程，父进程退出后它才能活下来完成替换
+	updater.SysProcAttr = &syscall.SysProcAttr{
+		CreationFlags: 0x00000008 | 0x00000200, // DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
 	}
-	_ = os.WriteFile(bat, []byte(strings.Join(lines, "\r\n")), 0644)
 
-	cmd := exec.Command("cmd.exe", "/c", bat)
-	if err := cmd.Start(); err != nil {
-		return map[string]interface{}{"success": false, "error": "启动更新脚本失败：" + err.Error()}, nil
+	if err := updater.Start(); err != nil {
+		return map[string]interface{}{"success": false, "error": "启动更新器失败：" + err.Error()}, nil
 	}
 
 	go func() {
-		time.Sleep(400 * time.Millisecond)
+		time.Sleep(300 * time.Millisecond)
 		os.Exit(0)
 	}()
 
@@ -460,6 +527,66 @@ func applySelfUpdate() (map[string]interface{}, error) {
 		res["plugin"] = map[string]interface{}{"success": false, "error": pluginErr.Error()}
 	}
 	return res, nil
+}
+
+// 更新器模式：把新版本写到目标位置，然后启动它
+func updaterLog(msg string) {
+	f, err := os.OpenFile(filepath.Join(filepath.Dir(os.Args[0]), "update-debug.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	fmt.Fprintf(f, "%s %s\n", time.Now().Format("15:04:05"), msg)
+}
+
+func runUpdater(targetExe string) {
+	updaterLog("更新器启动，目标：" + targetExe)
+	self, err := os.Executable()
+	if err != nil {
+		return
+	}
+
+	// 等旧进程退出并释放文件句柄
+	time.Sleep(2 * time.Second)
+
+	backup := targetExe + ".old"
+
+	data, err := os.ReadFile(self)
+	if err != nil || len(data) < (1<<20) {
+		updaterLog("读取自身失败")
+		return
+	}
+	updaterLog(fmt.Sprintf("新版本 %d 字节", len(data)))
+
+	_ = os.Remove(backup)
+	renameErr := os.Rename(targetExe, backup) // 先挪开旧版，挪不动下一步直接覆盖
+	updaterLog(fmt.Sprintf("挪开旧版：%v", renameErr))
+
+	// 直接写目标文件（比重命名自身可靠）
+	writeErr := os.WriteFile(targetExe, data, 0755)
+	if writeErr != nil {
+		time.Sleep(2 * time.Second)
+		writeErr = os.WriteFile(targetExe, data, 0755)
+	}
+
+	if writeErr != nil {
+		updaterLog("写入目标失败：" + writeErr.Error())
+		// 覆盖失败：还原旧版，至少还能用
+		if _, e := os.Stat(backup); e == nil {
+			_ = os.Rename(backup, targetExe)
+		}
+		return
+	}
+	updaterLog("已写入目标，准备启动新进程")
+
+	cmd := exec.Command(targetExe)
+	cmd.Dir = filepath.Dir(targetExe)
+	if err := cmd.Start(); err != nil {
+		updaterLog("启动新进程失败：" + err.Error())
+	}
+
+	time.Sleep(2 * time.Second)
+	_ = os.Remove(backup)
 }
 
 // 检查更新并把结果显示出来（启动时和定时任务都走这里）
@@ -777,6 +904,12 @@ func lanIPs() []string {
 }
 
 func main() {
+	// 更新器模式：由新版本接手替换旧 exe
+	if len(os.Args) >= 3 && os.Args[1] == "--apply-update" {
+		runUpdater(os.Args[2])
+		return
+	}
+
 	initState()
 	loadUpdateConf()
 	if updateURL == "" {
